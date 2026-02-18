@@ -21,7 +21,7 @@ We solved this by implementing a **Spatial-Memory State Machine**:
 * **PALMING ACTIVE:** The system calculates the distance between the *live* wrist position and the *frozen* eye coordinates to verify the posture even when the face is hidden.
 
 ![State Machine Diagram](assets/state_machine.png)
-*(Place your screenshot of Fig 5 from the documentation here)*
+
 
 ## ⚙️ System Architecture
 The application runs entirely on the CPU (approx. 30 FPS) using a geometric approach rather than deep learning classification, ensuring low latency and privacy.
@@ -32,7 +32,7 @@ The application runs entirely on the CPU (approx. 30 FPS) using a geometric appr
 4.  **Privacy:** Video is processed in RAM only. **No video data is ever saved to disk.**
 
 ![Block Diagram](assets/architecture.png)
-*(Place your screenshot of the System Block Diagram here)*
+
 
 ## 🚀 Installation & Setup
 
