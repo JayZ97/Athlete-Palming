@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Athlete Palming Verification</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background-color: #f4f4f9; color: #333; }
+        .container { 
+            margin-top: 50px; 
+            padding: 20px;
+            background: white;
+            display: inline-block;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+        h1 { color: #2c3e50; }
+        #videoElement { 
+            border: 5px solid #34495e; 
+            border-radius: 5px; 
+            width: 640px; 
+            height: 480px; 
+            background-color: #000;
+            display: block;
+            margin: 0 auto;
+        }
+        .controls { margin-top: 20px; }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 0 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+        .btn-start { background-color: #27ae60; }
+        .btn-stop { background-color: #c0392b; }
+        .btn-start:hover { background-color: #2ecc71; }
+        .btn-stop:hover { background-color: #e74c3c; }
+        .status { margin-top: 15px; font-size: 1.2em; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BTP: Automated Palming Verification</h1>
+        <p>Click "Start Session" to begin the exercise.</p>
+        
+        <img id="videoElement" src="" alt="Camera Inactive">
+        
+        <div class="controls">
+            <button class="btn-start" onclick="startCamera()">Start Session</button>
+            <button class="btn-stop" onclick="stopCamera()">Stop Session</button>
+        </div>
+
+        <div class="status" id="statusText">System Status: Ready</div>
+    </div>
+
+    <script>
+        function startCamera() {
+            // 1. Tell Python to turn the camera ON
+            fetch('/start_session', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                
+                // 2. ONLY after Python says "OK", show the video
+                // We add a timestamp to the URL to force the browser to reload the image
+                document.getElementById('videoElement').src = "{{ url_for('video_feed') }}?" + new Date().getTime();
+                
+                document.getElementById('statusText').innerText = "System Status: Monitoring Active";
+                document.getElementById('statusText').style.color = "#27ae60";
+            });
+        }
+
+        function stopCamera() {
+            // 1. Tell Python to turn the camera OFF
+            fetch('/stop_session', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                
+                // 2. Remove the video source
+                document.getElementById('videoElement').src = ""; 
+                
+                document.getElementById('statusText').innerText = "System Status: Session Stopped (Data Saved)";
+                document.getElementById('statusText').style.color = "#c0392b";
+            });
+        }
+    </script>
+</body>
+</html>
