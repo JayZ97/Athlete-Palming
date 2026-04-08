@@ -1,90 +1,950 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Athlete Palming Verification</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocular Recovery — Palming Session</title>
+    <meta name="description" content="A privacy-first ocular recovery tool that verifies palming exercises using computer vision.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background-color: #f4f4f9; color: #333; }
-        .container { 
-            margin-top: 50px; 
-            padding: 20px;
-            background: white;
-            display: inline-block;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border-radius: 10px;
+        /* ========================================
+           DESIGN SYSTEM — Relaxing Teal/Sage
+           ======================================== */
+        :root {
+            --bg-sage: #c9e4ca;
+            --bg-light: #eef4f0;
+            --bg-softest: #f5faf7;
+            --accent-seafoam: #87bba2;
+            --primary-teal: #55828b;
+            --dark-slate: #3b6064;
+            --text-charcoal: #364958;
+            --white: #ffffff;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.45);
+            --shadow-soft: 0 8px 32px rgba(54, 73, 88, 0.08);
+            --shadow-hover: 0 12px 40px rgba(54, 73, 88, 0.14);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
+            --radius-pill: 50px;
+            --transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
-        h1 { color: #2c3e50; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            text-align: center; 
+            background: linear-gradient(160deg, var(--bg-softest) 0%, var(--bg-sage) 50%, var(--bg-light) 100%);
+            background-attachment: fixed;
+            color: var(--text-charcoal); 
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* ========================================
+           HEADER
+           ======================================== */
+        .header {
+            margin-bottom: 32px;
+            animation: fadeDown 0.8s ease;
+        }
+
+        h1 { 
+            color: var(--dark-slate); 
+            font-weight: 600;
+            font-size: 2rem;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        h1 span { 
+            font-weight: 300; 
+            opacity: 0.7; 
+        }
+
+        .subtitle {
+            color: var(--primary-teal);
+            font-weight: 400;
+            font-size: 1rem;
+            opacity: 0.85;
+        }
+
+        /* ========================================
+           VIDEO STAGE
+           ======================================== */
+        .video-card { 
+            background: var(--white);
+            padding: 10px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 24px;
+            position: relative;
+            width: 640px;
+            max-width: 100%;
+            aspect-ratio: 4/3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            transition: var(--transition);
+            animation: fadeUp 0.6s ease;
+        }
+
+        .video-card.active {
+            box-shadow: 0 0 0 3px var(--accent-seafoam), var(--shadow-hover);
+            animation: breatheGlow 4s ease-in-out infinite;
+        }
+
+        @keyframes breatheGlow {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(135,187,162,0.4), var(--shadow-soft); }
+            50% { box-shadow: 0 0 0 6px rgba(135,187,162,0.2), 0 0 30px rgba(135,187,162,0.1), var(--shadow-hover); }
+        }
+
+        .video-placeholder {
+            position: absolute;
+            width: calc(100% - 20px);
+            height: calc(100% - 20px);
+            border-radius: 18px;
+            background: linear-gradient(to bottom, #f8fbf9, #edf3f0);
+            border: 2px dashed #d1e3d7;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--accent-seafoam);
+            z-index: 2;
+            transition: opacity 0.5s ease;
+        }
+
+        .video-placeholder p {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--primary-teal);
+            margin-top: 14px;
+        }
+
+        .camera-icon {
+            width: 36px; height: 36px;
+            border: 2.5px solid var(--accent-seafoam);
+            border-radius: 8px;
+            position: relative;
+        }
+        .camera-icon::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 12px; height: 12px;
+            border: 2.5px solid var(--accent-seafoam);
+            border-radius: 50%;
+        }
+
         #videoElement { 
-            border: 5px solid #34495e; 
-            border-radius: 5px; 
-            width: 640px; 
-            height: 480px; 
-            background-color: #000;
-            display: block;
-            margin: 0 auto;
+            border-radius: 18px; 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.5s ease;
         }
-        .controls { margin-top: 20px; }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin: 0 10px;
+
+        /* ========================================
+           CONTROLS
+           ======================================== */
+        .controls { 
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            margin-bottom: 32px;
+            animation: fadeUp 0.7s ease;
+        }
+
+        .btn {
+            padding: 14px 40px;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
             cursor: pointer;
+            border-radius: var(--radius-pill);
+            transition: var(--transition);
             border: none;
-            border-radius: 5px;
-            color: white;
+            letter-spacing: 0.3px;
         }
-        .btn-start { background-color: #27ae60; }
-        .btn-stop { background-color: #c0392b; }
-        .btn-start:hover { background-color: #2ecc71; }
-        .btn-stop:hover { background-color: #e74c3c; }
-        .status { margin-top: 15px; font-size: 1.2em; font-weight: bold; color: #555; }
+
+        .btn-start { 
+            background: linear-gradient(135deg, var(--primary-teal) 0%, var(--dark-slate) 100%);
+            color: var(--white);
+            box-shadow: 0 4px 18px rgba(59, 96, 100, 0.2);
+        }
+        .btn-start:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(59, 96, 100, 0.3);
+        }
+
+        .btn-stop { 
+            background: transparent;
+            color: var(--dark-slate);
+            border: 2px solid var(--accent-seafoam);
+            display: none;
+        }
+        .btn-stop:hover { 
+            background: var(--white);
+            border-color: var(--dark-slate);
+        }
+
+        /* ========================================
+           GLASS CARD — Shared Style
+           ======================================== */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            padding: 24px 28px;
+            width: 100%;
+            max-width: 560px;
+            text-align: left;
+            transition: var(--transition);
+        }
+
+        .glass-card:hover {
+            box-shadow: var(--shadow-hover);
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--dark-slate);
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1.5px solid rgba(201, 228, 202, 0.5);
+        }
+
+        /* ========================================
+           AUDIO PANEL
+           ======================================== */
+        .audio-panel {
+            margin-bottom: 24px;
+            animation: fadeUp 0.8s ease;
+        }
+
+        .audio-categories {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .audio-category-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--primary-teal);
+            margin-bottom: 4px;
+        }
+
+        .audio-toggles {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .audio-btn {
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: var(--radius-pill);
+            border: 1.5px solid rgba(135, 187, 162, 0.4);
+            background: rgba(255, 255, 255, 0.6);
+            color: var(--text-charcoal);
+            transition: var(--transition);
+        }
+
+        .audio-btn:hover {
+            border-color: var(--primary-teal);
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-1px);
+        }
+
+        .audio-btn.active {
+            background: linear-gradient(135deg, var(--primary-teal), var(--dark-slate));
+            color: var(--white);
+            border-color: transparent;
+            box-shadow: 0 3px 12px rgba(59, 96, 100, 0.2);
+        }
+
+        /* Headphone Notice */
+        .headphone-notice {
+            display: none;
+            margin-top: 12px;
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            background: rgba(85, 130, 139, 0.08);
+            border: 1px solid rgba(85, 130, 139, 0.15);
+            color: var(--primary-teal);
+            font-size: 0.82rem;
+            font-weight: 400;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .headphone-notice.visible {
+            display: block;
+        }
+
+        .headphone-notice .icon {
+            margin-right: 6px;
+        }
+
+        /* Volume Slider */
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(201, 228, 202, 0.3);
+        }
+
+        .volume-label {
+            font-size: 0.8rem;
+            color: var(--primary-teal);
+            font-weight: 500;
+            min-width: 20px;
+        }
+
+        .mute-btn {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 8px;
+            transition: var(--transition);
+            line-height: 1;
+        }
+
+        .mute-btn:hover {
+            background: rgba(85, 130, 139, 0.1);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 5px;
+            border-radius: 4px;
+            background: linear-gradient(to right, var(--accent-seafoam), var(--primary-teal));
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 2px solid var(--primary-teal);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+        }
+
+        /* ========================================
+           SESSION HISTORY
+           ======================================== */
+        .history-panel {
+            animation: fadeUp 0.9s ease;
+        }
+
+        .session-record {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(201, 228, 202, 0.25);
+            animation: slideIn 0.4s ease forwards;
+            opacity: 0;
+        }
+
+        .session-record:last-child {
+            border-bottom: none;
+        }
+
+        .session-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .session-date {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-charcoal);
+        }
+
+        .session-meta {
+            font-size: 0.75rem;
+            color: var(--primary-teal);
+            opacity: 0.8;
+        }
+
+        .session-duration {
+            background: var(--bg-light);
+            padding: 5px 14px;
+            border-radius: var(--radius-pill);
+            color: var(--dark-slate);
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .empty-history {
+            text-align: center;
+            padding: 20px;
+            color: var(--accent-seafoam);
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        /* ========================================
+           STATS ROW
+           ======================================== */
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            width: 100%;
+            max-width: 560px;
+            animation: fadeUp 0.85s ease;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark-slate);
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--primary-teal);
+            margin-top: 4px;
+        }
+
+        /* ========================================
+           ANIMATIONS
+           ======================================== */
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ========================================
+           RESPONSIVE
+           ======================================== */
+        @media (max-width: 680px) {
+            .video-card { width: 100%; }
+            .stats-row { flex-direction: column; }
+            .audio-toggles { justify-content: center; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>BTP: Automated Palming Verification</h1>
-        <p>Click "Start Session" to begin the exercise.</p>
-        
-        <img id="videoElement" src="" alt="Camera Inactive">
-        
-        <div class="controls">
-            <button class="btn-start" onclick="startCamera()">Start Session</button>
-            <button class="btn-stop" onclick="stopCamera()">Stop Session</button>
+
+    <!-- HEADER -->
+    <div class="header">
+        <h1>Ocular Recovery</h1>
+        <p class="subtitle">Rest your eyes, calm your mind.</p>
+    </div>
+
+    <!-- VIDEO STAGE -->
+    <div class="video-card" id="videoCard">
+        <div class="video-placeholder" id="videoPlaceholder">
+            <div class="camera-icon"></div>
+            <p>Press Start to begin your session.</p>
+        </div>
+        <img id="videoElement" src="" alt="Webcam feed">
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+        <button class="btn btn-start" id="startBtn" onclick="startCamera()">Start Session</button>
+        <button class="btn btn-stop" id="stopBtn" onclick="stopCamera()">End Session</button>
+    </div>
+
+    <!-- AUDIO PANEL -->
+    <div class="glass-card audio-panel" id="audioPanel">
+        <div class="card-title">🎵 Soundscape</div>
+        <div class="audio-categories">
+            <!-- Nature Sounds -->
+            <div>
+                <div class="audio-category-label">Nature Sounds</div>
+                <div class="audio-toggles">
+                    <button class="audio-btn" data-type="file" data-src="/static/audio/rain.wav" onclick="toggleAudio(this)">🌧 Rain</button>
+                    <button class="audio-btn" data-type="file" data-src="/static/audio/ocean.wav" onclick="toggleAudio(this)">🌊 Ocean</button>
+                    <button class="audio-btn" data-type="file" data-src="/static/audio/forest.wav" onclick="toggleAudio(this)">🌿 Forest</button>
+                </div>
+            </div>
+
+            <!-- Generated Sounds -->
+            <div>
+                <div class="audio-category-label">Generated Sounds</div>
+                <div class="audio-toggles">
+                    <button class="audio-btn" data-type="pink" onclick="toggleAudio(this)">📡 Pink Noise</button>
+                    <button class="audio-btn" data-type="binaural" data-freq="10" onclick="toggleAudio(this)">🧠 Alpha (10 Hz)</button>
+                    <button class="audio-btn" data-type="binaural" data-freq="6" onclick="toggleAudio(this)">🧘 Theta (6 Hz)</button>
+                </div>
+            </div>
         </div>
 
-        <div class="status" id="statusText">System Status: Ready</div>
+        <!-- Headphone Notice -->
+        <div class="headphone-notice" id="headphoneNotice">
+            <span class="icon">🎧</span>
+            <strong>Headphones required.</strong> Binaural beats work by playing slightly different frequencies in each ear — this effect only works with stereo headphones.
+        </div>
+
+        <!-- Volume -->
+        <div class="volume-control">
+            <button class="mute-btn" id="muteBtn" onclick="toggleMute()" title="Mute/Unmute">🔊</button>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" oninput="setVolume(this.value)">
+        </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-row" id="statsRow">
+        <div class="stat-card">
+            <div class="stat-value" id="statTotal">–</div>
+            <div class="stat-label">Total Sessions</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statAvg">–</div>
+            <div class="stat-label">Avg Duration</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statToday">–</div>
+            <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statTotalTime">–</div>
+            <div class="stat-label">Total Time</div>
+        </div>
+    </div>
+
+    <!-- SESSION HISTORY -->
+    <div class="glass-card history-panel" id="historyPanel">
+        <div class="card-title">📋 Recent Sessions</div>
+        <div id="historyList">
+            <div class="empty-history">No sessions recorded yet. Start your first one!</div>
+        </div>
     </div>
 
     <script>
+        // ============================================
+        // CAMERA / SESSION CONTROL
+        // ============================================
+        let activeAudioName = null;
+
         function startCamera() {
-            // 1. Tell Python to turn the camera ON
-            fetch('/start_session', { method: 'POST' })
-            .then(response => response.json())
+            const payload = activeAudioName ? { audio_track: activeAudioName } : {};
+
+            fetch('/start_session', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
             .then(data => {
-                console.log(data.message);
-                
-                // 2. ONLY after Python says "OK", show the video
-                // We add a timestamp to the URL to force the browser to reload the image
-                document.getElementById('videoElement').src = "{{ url_for('video_feed') }}?" + new Date().getTime();
-                
-                document.getElementById('statusText').innerText = "System Status: Monitoring Active";
-                document.getElementById('statusText').style.color = "#27ae60";
+                const videoEl = document.getElementById('videoElement');
+                const placeholder = document.getElementById('videoPlaceholder');
+                const videoCard = document.getElementById('videoCard');
+
+                videoEl.src = "{{ url_for('video_feed') }}?" + Date.now();
+
+                setTimeout(() => {
+                    placeholder.style.opacity = '0';
+                    videoEl.style.opacity = '1';
+                    videoCard.classList.add('active');
+                }, 300);
+
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('stopBtn').style.display = 'inline-block';
             });
         }
 
         function stopCamera() {
-            // 1. Tell Python to turn the camera OFF
             fetch('/stop_session', { method: 'POST' })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                console.log(data.message);
-                
-                // 2. Remove the video source
-                document.getElementById('videoElement').src = ""; 
-                
-                document.getElementById('statusText').innerText = "System Status: Session Stopped (Data Saved)";
-                document.getElementById('statusText').style.color = "#c0392b";
+                const videoEl = document.getElementById('videoElement');
+                const placeholder = document.getElementById('videoPlaceholder');
+                const videoCard = document.getElementById('videoCard');
+
+                videoEl.style.opacity = '0';
+                placeholder.style.opacity = '1';
+                videoCard.classList.remove('active');
+
+                setTimeout(() => { videoEl.src = ""; }, 500);
+
+                document.getElementById('startBtn').style.display = 'inline-block';
+                document.getElementById('stopBtn').style.display = 'none';
+
+                // Refresh history and stats
+                if (data.duration > 0) {
+                    loadSessions();
+                    loadStats();
+                }
             });
         }
+
+        // ============================================
+        // AUDIO SYSTEM
+        // ============================================
+        let audioCtx = null;
+        let currentFileAudio = null;     // HTML5 Audio element for file playback
+        let currentOscNodes = [];        // Web Audio API oscillator nodes
+        let currentGainNode = null;      // Master gain for generated audio
+        let activeBtn = null;            // Currently active button
+        let masterVolume = 0.5;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function stopAllAudio() {
+            // Stop file audio
+            if (currentFileAudio) {
+                currentFileAudio.pause();
+                currentFileAudio.currentTime = 0;
+                currentFileAudio = null;
+            }
+            // Stop oscillators
+            currentOscNodes.forEach(node => {
+                try { node.stop(); } catch(e) {}
+            });
+            currentOscNodes = [];
+            if (currentGainNode) {
+                currentGainNode.disconnect();
+                currentGainNode = null;
+            }
+            // Reset active button
+            if (activeBtn) {
+                activeBtn.classList.remove('active');
+                activeBtn = null;
+            }
+            activeAudioName = null;
+            document.getElementById('headphoneNotice').classList.remove('visible');
+        }
+
+        function toggleAudio(btn) {
+            // If clicking the already active button, stop audio
+            if (btn === activeBtn) {
+                stopAllAudio();
+                // Notify server
+                fetch('/update_audio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audio_track: null })
+                });
+                return;
+            }
+
+            // Stop any current audio first
+            stopAllAudio();
+
+            const type = btn.dataset.type;
+            activeBtn = btn;
+            btn.classList.add('active');
+            activeAudioName = btn.textContent.trim();
+
+            if (type === 'file') {
+                playFileAudio(btn.dataset.src);
+            } else if (type === 'pink') {
+                playPinkNoise();
+            } else if (type === 'binaural') {
+                const freq = parseFloat(btn.dataset.freq);
+                playBinauralBeat(freq);
+                document.getElementById('headphoneNotice').classList.add('visible');
+            }
+
+            // Notify server of audio change
+            fetch('/update_audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audio_track: activeAudioName })
+            });
+        }
+
+        // --- File-based audio (nature sounds) ---
+        function playFileAudio(src) {
+            currentFileAudio = new Audio(src);
+            currentFileAudio.loop = true;
+            currentFileAudio.volume = masterVolume;
+            currentFileAudio.play().catch(e => console.log('Audio play blocked:', e));
+        }
+
+        // --- Pink Noise (Web Audio API) ---
+        function playPinkNoise() {
+            const ctx = getAudioContext();
+            const bufferSize = 2 * ctx.sampleRate; // 2 seconds buffer
+            const buffer = ctx.createBuffer(2, bufferSize, ctx.sampleRate);
+
+            // Generate pink noise using Paul Kellet's algorithm
+            for (let channel = 0; channel < 2; channel++) {
+                const data = buffer.getChannelData(channel);
+                let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                    b6 = white * 0.115926;
+                }
+            }
+
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+
+            currentGainNode = ctx.createGain();
+            currentGainNode.gain.value = masterVolume;
+
+            source.connect(currentGainNode);
+            currentGainNode.connect(ctx.destination);
+            source.start();
+
+            currentOscNodes.push(source);
+        }
+
+        // --- Binaural Beats (Web Audio API) ---
+        function playBinauralBeat(freqDiff) {
+            const ctx = getAudioContext();
+            const baseFreq = 200; // Base carrier frequency
+
+            // Left ear oscillator
+            const leftOsc = ctx.createOscillator();
+            leftOsc.type = 'sine';
+            leftOsc.frequency.value = baseFreq;
+
+            // Right ear oscillator
+            const rightOsc = ctx.createOscillator();
+            rightOsc.type = 'sine';
+            rightOsc.frequency.value = baseFreq + freqDiff;
+
+            // Pan left to left ear, right to right ear
+            const leftPan = ctx.createStereoPanner();
+            leftPan.pan.value = -1;
+            const rightPan = ctx.createStereoPanner();
+            rightPan.pan.value = 1;
+
+            // Master gain
+            currentGainNode = ctx.createGain();
+            currentGainNode.gain.value = masterVolume * 0.3; // Binaural should be quieter
+
+            leftOsc.connect(leftPan);
+            rightOsc.connect(rightPan);
+            leftPan.connect(currentGainNode);
+            rightPan.connect(currentGainNode);
+            currentGainNode.connect(ctx.destination);
+
+            leftOsc.start();
+            rightOsc.start();
+
+            currentOscNodes.push(leftOsc, rightOsc);
+        }
+
+        // --- Volume Control ---
+        let isMuted = false;
+        let volumeBeforeMute = 0.5;
+
+        function setVolume(val) {
+            masterVolume = parseFloat(val);
+            if (currentFileAudio) {
+                currentFileAudio.volume = masterVolume;
+            }
+            if (currentGainNode) {
+                // Scale down binaural beats
+                const isBinaural = activeBtn && activeBtn.dataset.type === 'binaural';
+                currentGainNode.gain.value = isBinaural ? masterVolume * 0.3 : masterVolume;
+            }
+            // Update mute icon based on volume level
+            if (masterVolume > 0) {
+                isMuted = false;
+                document.getElementById('muteBtn').textContent = '🔊';
+            }
+        }
+
+        function toggleMute() {
+            const slider = document.getElementById('volumeSlider');
+            const muteBtn = document.getElementById('muteBtn');
+
+            if (isMuted) {
+                // Unmute — restore previous volume
+                isMuted = false;
+                masterVolume = volumeBeforeMute;
+                slider.value = masterVolume;
+                muteBtn.textContent = '🔊';
+            } else {
+                // Mute — save current volume and set to 0
+                isMuted = true;
+                volumeBeforeMute = masterVolume;
+                masterVolume = 0;
+                slider.value = 0;
+                muteBtn.textContent = '🔇';
+            }
+
+            // Apply to active audio
+            if (currentFileAudio) {
+                currentFileAudio.volume = masterVolume;
+            }
+            if (currentGainNode) {
+                const isBinaural = activeBtn && activeBtn.dataset.type === 'binaural';
+                currentGainNode.gain.value = isBinaural ? masterVolume * 0.3 : masterVolume;
+            }
+        }
+
+        // ============================================
+        // SESSION HISTORY & STATS (from MongoDB)
+        // ============================================
+        function formatDuration(seconds) {
+            if (seconds < 60) return seconds + 's';
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return mins + 'm ' + secs + 's';
+        }
+
+        function formatTotalTime(seconds) {
+            if (seconds < 60) return seconds + 's';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm';
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            return hrs + 'h ' + mins + 'm';
+        }
+
+        function formatSessionTime(isoString) {
+            const d = new Date(isoString);
+            const now = new Date();
+            const isToday = d.toDateString() === now.toDateString();
+            
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const isYesterday = d.toDateString() === yesterday.toDateString();
+
+            const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            if (isToday) return 'Today, ' + time;
+            if (isYesterday) return 'Yesterday, ' + time;
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + time;
+        }
+
+        function loadSessions() {
+            fetch('/api/sessions')
+            .then(r => r.json())
+            .then(sessions => {
+                const list = document.getElementById('historyList');
+                
+                if (sessions.length === 0) {
+                    list.innerHTML = '<div class="empty-history">No sessions recorded yet. Start your first one!</div>';
+                    return;
+                }
+
+                list.innerHTML = '';
+                sessions.slice(0, 10).forEach((s, i) => {
+                    const record = document.createElement('div');
+                    record.className = 'session-record';
+                    record.style.animationDelay = (i * 0.06) + 's';
+
+                    const audioLabel = s.audio_track ? ' · ' + s.audio_track : '';
+
+                    record.innerHTML = `
+                        <div class="session-info">
+                            <span class="session-date">${formatSessionTime(s.start_time)}</span>
+                            <span class="session-meta">${s.day_of_week}${audioLabel}</span>
+                        </div>
+                        <span class="session-duration">${formatDuration(s.duration_seconds)}</span>
+                    `;
+                    list.appendChild(record);
+                });
+            });
+        }
+
+        function loadStats() {
+            fetch('/api/sessions/stats')
+            .then(r => r.json())
+            .then(stats => {
+                document.getElementById('statTotal').textContent = stats.total_sessions;
+                document.getElementById('statAvg').textContent = formatDuration(Math.round(stats.avg_duration));
+                document.getElementById('statToday').textContent = stats.today_count;
+                document.getElementById('statTotalTime').textContent = formatTotalTime(stats.total_time_seconds);
+            });
+        }
+
+        // Load data on page load
+        loadSessions();
+        loadStats();
     </script>
 </body>
 </html>
