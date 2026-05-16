@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ocular Recovery — Palming Session</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -124,10 +124,89 @@
             background: var(--white); box-shadow: 0 2px 6px rgba(0,0,0,0.15); cursor: pointer;
         }
 
+        /* Goal Timer Picker */
+        .goal-picker { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }
+        .goal-label { font-size: 0.82rem; font-weight: 600; color: var(--dark-slate); }
+        .goal-btn {
+            padding: 7px 16px; border-radius: var(--radius-pill); border: 1.5px solid var(--accent-seafoam);
+            background: transparent; color: var(--dark-slate); font-weight: 500; font-size: 0.8rem;
+            cursor: pointer; transition: var(--transition); font-family: 'Inter', sans-serif;
+        }
+        .goal-btn:hover { background: rgba(135, 187, 162, 0.15); }
+        .goal-btn.active { background: var(--primary-teal); color: var(--white); border-color: var(--primary-teal); }
+        .goal-custom {
+            width: 60px; padding: 7px 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--accent-seafoam);
+            font-family: 'Inter', sans-serif; font-size: 0.82rem; text-align: center; color: var(--dark-slate);
+            outline: none; background: rgba(255,255,255,0.6); transition: var(--transition);
+        }
+        .goal-custom:focus { border-color: var(--primary-teal); box-shadow: 0 0 0 3px rgba(85, 130, 139, 0.15); }
+        .goal-unit { font-size: 0.75rem; color: var(--primary-teal); font-weight: 500; }
+
+        /* Goal Notification Banner */
+        .goal-notification {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%) translateY(-120px);
+            background: linear-gradient(135deg, var(--primary-teal), var(--dark-slate));
+            color: white; padding: 16px 32px; border-radius: var(--radius-pill);
+            font-weight: 600; font-size: 1rem; box-shadow: 0 8px 32px rgba(54,73,88,0.3);
+            z-index: 1000; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .goal-notification.show { transform: translateX(-50%) translateY(0); }
+        .goal-notification .notif-icon { font-size: 1.3rem; }
+
+        /* Goal Progress Bar (on video overlay) */
+        #goalProgress {
+            position: absolute; bottom: 20px; left: 24px; right: 24px;
+            height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px;
+            z-index: 10; display: none; overflow: hidden;
+        }
+        #goalProgressFill {
+            height: 100%; width: 0%; border-radius: 3px;
+            background: linear-gradient(90deg, var(--accent-seafoam), #82d2a0);
+            transition: width 0.5s ease;
+        }
+
         @media (max-width: 680px) {
-            .video-card { width: 100%; }
-            .stats-row { flex-direction: column; }
+            body { padding: 20px 12px; }
+            h1 { font-size: 1.5rem; }
+            .subtitle { font-size: 0.85rem; }
+            .header { margin-bottom: 20px; }
+
+            .video-card { width: 100%; aspect-ratio: 3/4; margin-bottom: 16px; padding: 6px; border-radius: var(--radius-md); }
+            #videoElement { border-radius: 12px; }
+            .video-placeholder { border-radius: 12px; font-size: 0.85rem; }
+            #statusOverlay { top: 14px; left: 14px; padding: 6px 12px; font-size: 0.78rem; }
+            #goalProgress { bottom: 14px; left: 14px; right: 14px; }
+
+            .goal-picker { gap: 8px; margin-bottom: 16px; }
+            .goal-btn { padding: 10px 18px; font-size: 0.82rem; }
+            .goal-custom { width: 55px; padding: 10px 8px; }
+
+            .controls { margin-bottom: 20px; }
+            .btn { padding: 14px 36px; font-size: 0.9rem; }
+
+            .glass-card { padding: 18px 16px; border-radius: var(--radius-md); margin-bottom: 16px; }
             .audio-toggles { justify-content: center; }
+            .audio-btn { padding: 10px 16px; }
+
+            .stats-row { flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+            .stat-card { flex: 1 1 45%; min-width: 0; padding: 12px 8px; }
+            .stat-value { font-size: 1.2rem; }
+            .stat-label { font-size: 0.62rem; }
+
+            .session-date { font-size: 0.78rem; }
+            .session-duration { font-size: 0.78rem; padding: 4px 10px; }
+
+            .goal-notification { padding: 12px 20px; font-size: 0.85rem; max-width: 90vw; }
+        }
+
+        /* Extra small phones */
+        @media (max-width: 380px) {
+            body { padding: 12px 8px; }
+            h1 { font-size: 1.3rem; }
+            .btn { padding: 12px 28px; font-size: 0.82rem; }
+            .goal-btn { padding: 8px 12px; font-size: 0.75rem; }
+            .stat-card { flex: 1 1 100%; }
         }
     </style>
 </head>
@@ -144,11 +223,29 @@
             <p>Press Start to begin your session.</p>
         </div>
         <video id="videoElement" autoplay playsinline></video>
+        <div id="goalProgress"><div id="goalProgressFill"></div></div>
+    </div>
+
+    <!-- GOAL TIMER PICKER -->
+    <div class="goal-picker" id="goalPicker">
+        <span class="goal-label">⏱ Goal:</span>
+        <button class="goal-btn" onclick="setGoal(60, this)">1 min</button>
+        <button class="goal-btn" onclick="setGoal(180, this)">3 min</button>
+        <button class="goal-btn active" onclick="setGoal(300, this)">5 min</button>
+        <button class="goal-btn" onclick="setGoal(600, this)">10 min</button>
+        <input class="goal-custom" type="number" min="1" max="60" placeholder="Custom" id="customGoalInput" onchange="setCustomGoal(this.value)">
+        <span class="goal-unit">min</span>
     </div>
 
     <div class="controls">
         <button class="btn btn-start" id="startBtn" onclick="startCamera()">Start Session</button>
         <button class="btn btn-stop" id="stopBtn" onclick="stopCamera()">End Session</button>
+    </div>
+
+    <!-- GOAL NOTIFICATION BANNER -->
+    <div class="goal-notification" id="goalNotification">
+        <span class="notif-icon">🎉</span>
+        <span id="goalNotifText">Goal complete! Great session.</span>
     </div>
 
     <!-- AUDIO PANEL -->
@@ -290,12 +387,17 @@
                     currentStretchStart = Date.now() / 1000;
                 }
                 sessionDuration = Math.floor((Date.now() / 1000) - currentStretchStart);
+                // Track cumulative palming time for goal
+                cumulativePalmingTime = getTotalPalmedSeconds() + sessionDuration;
             } else {
                 currentStretchStart = null;
                 sessionDuration = 0;
             }
 
-            // 5. Update UI Overlay safely
+            // 5. Check goal completion
+            checkGoalCompletion();
+
+            // 6. Update UI Overlay safely
             updateOverlay(isCurrentlyPalming, sessionDuration, warningMsg);
         });
 
@@ -315,11 +417,78 @@
         // ============================================
         // 2. SESSION CONTROLS
         // ============================================
+        // --- Goal Timer State ---
+        let goalSeconds = 300; // default 5 min
+        let cumulativePalmingTime = 0;
+        let goalReached = false;
+
+        function setGoal(seconds, btn) {
+            goalSeconds = seconds;
+            goalReached = false;
+            document.querySelectorAll('.goal-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            document.getElementById('customGoalInput').value = '';
+        }
+
+        function setCustomGoal(minutes) {
+            const mins = parseInt(minutes);
+            if (mins > 0) {
+                goalSeconds = mins * 60;
+                goalReached = false;
+                document.querySelectorAll('.goal-btn').forEach(b => b.classList.remove('active'));
+            }
+        }
+
+        function getTotalPalmedSeconds() {
+            return completedStretches.reduce((sum, s) => sum + s.duration, 0);
+        }
+
+        function checkGoalCompletion() {
+            // Update progress bar
+            if (goalSeconds > 0) {
+                const pct = Math.min((cumulativePalmingTime / goalSeconds) * 100, 100);
+                document.getElementById('goalProgressFill').style.width = pct + '%';
+            }
+            // Trigger notification when goal is hit
+            if (!goalReached && goalSeconds > 0 && cumulativePalmingTime >= goalSeconds) {
+                goalReached = true;
+                playGoalChime();
+                showGoalNotification();
+            }
+        }
+
+        function playGoalChime() {
+            const ctx = getAudioContext();
+            // Play a pleasant two-tone chime
+            [523.25, 659.25, 783.99].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.2 + 0.8);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + i * 0.2);
+                osc.stop(ctx.currentTime + i * 0.2 + 0.8);
+            });
+        }
+
+        function showGoalNotification() {
+            const mins = Math.floor(goalSeconds / 60);
+            const notif = document.getElementById('goalNotification');
+            document.getElementById('goalNotifText').textContent =
+                `🎯 ${mins}-minute goal complete! Great session.`;
+            notif.classList.add('show');
+            setTimeout(() => notif.classList.remove('show'), 5000);
+        }
+
         function startCamera() {
             // Reset arrays and UI
             completedStretches = [];
             currentStretchStart = null;
             sessionDuration = 0;
+            cumulativePalmingTime = 0;
+            goalReached = false;
 
             document.getElementById('videoPlaceholder').style.opacity = '0';
             document.getElementById('videoElement').style.display = 'block';
@@ -328,10 +497,15 @@
 
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'inline-block';
+            document.getElementById('goalProgress').style.display = 'block';
+            document.getElementById('goalProgressFill').style.width = '0%';
+            document.getElementById('goalPicker').style.opacity = '0.5';
+            document.getElementById('goalPicker').style.pointerEvents = 'none';
 
-            // Start Local Webcam
+            // Start Local Webcam — use front camera on mobile
             camera = new Camera(videoElement, {
                 onFrame: async () => { await holistic.send({image: videoElement}); },
+                facingMode: 'user',
                 width: 640,
                 height: 480
             });
@@ -358,6 +532,9 @@
 
             document.getElementById('startBtn').style.display = 'inline-block';
             document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('goalProgress').style.display = 'none';
+            document.getElementById('goalPicker').style.opacity = '1';
+            document.getElementById('goalPicker').style.pointerEvents = 'auto';
 
             // Send strictly JSON to Backend
             if (completedStretches.length > 0) {
